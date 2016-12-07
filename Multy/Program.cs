@@ -9,19 +9,15 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            var sample = new ThreadSample();
-
-            var threadOne = new Thread(sample.CountNumbers);
-            threadOne.Name = "ThreadOne";
-            var threadTwo = new Thread(sample.CountNumbers);
-            threadTwo.Name = "ThreadTwo";
-            threadOne.Priority = ThreadPriority.Highest;
-
-            threadTwo.Priority = ThreadPriority.Lowest;
+            var sampleForeground = new ThreadSample(10);
+            var sampleBackground = new ThreadSample(20);
+            var threadOne = new Thread(sampleForeground.CountNumbers);
+            threadOne.Name = "ForegroundThread";
+            var threadTwo = new Thread(sampleBackground.CountNumbers);
+            threadTwo.Name = "BackgroundThread";
+            threadTwo.IsBackground = true;
             threadOne.Start();
             threadTwo.Start();
-            Sleep(TimeSpan.FromSeconds(2));
-            sample.Stop();
         }
 
 
@@ -29,23 +25,20 @@ namespace Multy
 
     class ThreadSample
     {
-        private bool _isStoped = false;
+        private readonly int _iterations;
 
-        public void Stop()
+        public ThreadSample(int iterations)
         {
-            _isStoped = true;
+            _iterations = iterations;
         }
 
         public void CountNumbers()
         {
-            long counter = 0;
-
-            while (!_isStoped)
+            for (int i = 0; i < _iterations; i++)
             {
-                counter++;
+                Sleep(TimeSpan.FromSeconds(0.5));
+                WriteLine($"{CurrentThread.Name} prints {i}");
             }
-
-            Console.WriteLine($"{CurrentThread.Name} with {CurrentThread.Priority,11} priority has a count {counter,13:N0}");
         }
     }
 }
