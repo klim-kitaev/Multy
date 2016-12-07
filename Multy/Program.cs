@@ -9,39 +9,43 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            WriteLine("Starting program...");
-            Thread t = new Thread(PrintNumbersWithStatus);
-            Thread t2 = new Thread(DoNothing);
-            WriteLine(t.ThreadState.ToString());
-            t2.Start();
-            t.Start();
-            for (int i = 1; i < 30; i++)
-            {
-                WriteLine(t.ThreadState.ToString());
-            }
-            Sleep(TimeSpan.FromSeconds(6));
-            t.Abort();
-            WriteLine("A thread has been aborted");
-            WriteLine(t.ThreadState.ToString());
-            WriteLine(t2.ThreadState.ToString());
+            var sample = new ThreadSample();
 
-        }
+            var threadOne = new Thread(sample.CountNumbers);
+            threadOne.Name = "ThreadOne";
+            var threadTwo = new Thread(sample.CountNumbers);
+            threadTwo.Name = "ThreadTwo";
+            threadOne.Priority = ThreadPriority.Highest;
 
-
-        static void DoNothing()
-        {
+            threadTwo.Priority = ThreadPriority.Lowest;
+            threadOne.Start();
+            threadTwo.Start();
             Sleep(TimeSpan.FromSeconds(2));
+            sample.Stop();
         }
 
-        static void PrintNumbersWithStatus()
+
+    }
+
+    class ThreadSample
+    {
+        private bool _isStoped = false;
+
+        public void Stop()
         {
-            WriteLine("Starting...");
-            WriteLine(CurrentThread.ThreadState.ToString());
-            for (int i = 1; i < 10; i++)
+            _isStoped = true;
+        }
+
+        public void CountNumbers()
+        {
+            long counter = 0;
+
+            while (!_isStoped)
             {
-                Sleep(TimeSpan.FromSeconds(2));
-                WriteLine(i);
+                counter++;
             }
+
+            Console.WriteLine($"{CurrentThread.Name} with {CurrentThread.Priority,11} priority has a count {counter,13:N0}");
         }
     }
 }
