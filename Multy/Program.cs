@@ -9,7 +9,7 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            Thread t = new Thread(PrintNumbers);
+            Thread t = new Thread(PrintNumbersWithDelay);
             t.Start();
             PrintNumbers();
             ReadLine();
@@ -20,6 +20,16 @@ namespace Multy
             WriteLine("Starting...");
             for (int i = 1; i < 10; i++)
             {
+                WriteLine(i);
+            }
+        }
+
+        static void PrintNumbersWithDelay()
+        {
+            WriteLine("Starting...");
+            for (int i = 1; i < 10; i++)
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(2));
                 WriteLine(i);
             }
         }
