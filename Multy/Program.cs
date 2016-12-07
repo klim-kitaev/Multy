@@ -9,36 +9,71 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            var sampleForeground = new ThreadSample(10);
-            var sampleBackground = new ThreadSample(20);
-            var threadOne = new Thread(sampleForeground.CountNumbers);
-            threadOne.Name = "ForegroundThread";
-            var threadTwo = new Thread(sampleBackground.CountNumbers);
-            threadTwo.Name = "BackgroundThread";
-            threadTwo.IsBackground = true;
+            var sample = new ThreadSample(10);
+            var threadOne = new Thread(sample.CountNumbers);
+            threadOne.Name = "ThreadOne";
             threadOne.Start();
-            threadTwo.Start();
+            threadOne.Join();
+            WriteLine("--------------------------");
+
+            var threadTwo = new Thread(Count);
+            threadTwo.Name = "ThreadTwo";
+            threadTwo.Start(8);
+            threadTwo.Join();
+            WriteLine("--------------------------");
+
+            var threadThree = new Thread(() => CountNumbers(12));
+            threadThree.Name = "ThreadThree";
+            threadThree.Start();
+            threadThree.Join();
+            WriteLine("--------------------------");
+
+            int i = 10;
+            var threadFour = new Thread(() => PrintNumber(i));
+            i = 20;
+            var threadFive = new Thread(() => PrintNumber(i));
+            threadFour.Start();
+            threadFive.Start();
+
         }
 
 
-    }
-
-    class ThreadSample
-    {
-        private readonly int _iterations;
-
-        public ThreadSample(int iterations)
+        static void Count(object iterations)
         {
-            _iterations = iterations;
+            CountNumbers((int)iterations);
         }
 
-        public void CountNumbers()
+        static void CountNumbers(int iterations)
         {
-            for (int i = 0; i < _iterations; i++)
+            for (int i = 1; i <= iterations; i++)
             {
                 Sleep(TimeSpan.FromSeconds(0.5));
                 WriteLine($"{CurrentThread.Name} prints {i}");
             }
         }
+
+        static void PrintNumber(int number)
+        {
+            WriteLine(number);
+        }
+
+        class ThreadSample
+        {
+            private readonly int _iterations;
+            public ThreadSample(int iterations)
+            {
+                _iterations = iterations;
+            }
+            public void CountNumbers()
+            {
+                for (int i = 1; i <= _iterations; i++)
+                {
+                    Sleep(TimeSpan.FromSeconds(0.5));
+                    WriteLine($"{CurrentThread.Name} prints {i}");
+                }
+            }
+        }
     }
+
+
 }
