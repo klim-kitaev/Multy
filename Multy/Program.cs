@@ -9,45 +9,37 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            object lock1 = new object();
-            object lock2 = new object();
-
-
-            new Thread(() => LockTooMuch(lock1, lock2)).Start();
-
-            lock (lock2)
+            var t = new Thread(FaultyThread);
+            t.Start();
+            t.Join();
+            try
             {
-                Sleep(1000);
-                WriteLine("Monitor.TryEnter allows not to get stuck, returning false after a specified timeout is elapsed");
-                if (Monitor.TryEnter(lock1, TimeSpan.FromSeconds(5)))
-                {
-                    WriteLine("Acquired a protected resource succesfully");
-                }
-                else
-                {
-                    WriteLine("Timeout acquiring a resource!");
-                }
+                t = new Thread(BadFaultyThread);
+                t.Start();
             }
-
-            new Thread(() => LockTooMuch(lock1, lock2)).Start();
-            WriteLine("----------------------------------");
-            lock (lock2)
+            catch (Exception ex)
             {
-                WriteLine("This will be a deadlock!");
-                Sleep(1000);
-                lock (lock1)
-                {
-                    WriteLine("Acquired a protected resource succesfully");
-                }
+                WriteLine("We won't get here!");
             }
         }
 
-        static void LockTooMuch(object lock1, object lock2)
+        static void BadFaultyThread()
         {
-            lock (lock1)
+            WriteLine("Starting a faulty thread...");
+            Sleep(TimeSpan.FromSeconds(2));
+            throw new Exception("Boom!");
+        }
+        static void FaultyThread()
+        {
+            try
             {
-                Sleep(1000);
-                lock (lock2) ;
+                WriteLine("Starting a faulty thread...");
+                Sleep(TimeSpan.FromSeconds(1));
+                throw new Exception("Boom!");
+            }
+            catch (Exception ex)
+            {
+                WriteLine($"Exception handled: {ex.Message}");
             }
         }
     }
