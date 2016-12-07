@@ -9,9 +9,12 @@ namespace Multy
     {
         static void Main(string[] args)
         {
+            WriteLine("Starting program...");
             Thread t = new Thread(PrintNumbersWithDelay);
             t.Start();
-            t.Join();
+            Thread.Sleep(TimeSpan.FromSeconds(6));
+            t.Abort();
+            WriteLine("A thread has been aborted");
             ReadLine();
         }
 
