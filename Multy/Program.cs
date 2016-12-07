@@ -9,25 +9,38 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            for (int i = 0; i < 6; i++)
-            {
-                string threadName = "Thread " + i;
-                int secondsToWait = 2 + 2 * i;
+            new Thread(() => Process(10)).Start();
 
-                new Thread(() => AccessDatabase(threadName, secondsToWait)).Start();
-            }
+            WriteLine("Waiting for another thread to complete work");
+            _workerEvent.WaitOne();
+
+            WriteLine("First operation is completed!");
+            WriteLine("Performing an operation on a main thread");
+            Sleep(TimeSpan.FromSeconds(5));
+            _mainEvent.Set();
+            WriteLine("Now running the second operation on a second thread");
+            _workerEvent.WaitOne();
+            WriteLine("Second operation is completed!");
         }
 
-        static SemaphoreSlim _semaphore = new SemaphoreSlim(4);
+        private static AutoResetEvent _workerEvent = new AutoResetEvent(false);
 
-        static void AccessDatabase(string name, int seconds)
+        private static AutoResetEvent _mainEvent = new AutoResetEvent(false);
+
+        static void Process(int seconds)
         {
-            WriteLine($"{name} waits to access a database");
-            _semaphore.Wait();
-            WriteLine($"{name} was granted an access to a database");
+            WriteLine("Starting a long running work...");
             Sleep(TimeSpan.FromSeconds(seconds));
-            WriteLine($"{name} is completed");
-            _semaphore.Release();
+            WriteLine("Work is done!");
+
+            _workerEvent.Set();
+            WriteLine("Waiting for a main thread to complete its work");
+            _mainEvent.WaitOne();
+
+            WriteLine("Starting second operation...");
+            Sleep(TimeSpan.FromSeconds(seconds));
+            WriteLine("Work is done!");
+            _workerEvent.Set();
         }
     }
 
