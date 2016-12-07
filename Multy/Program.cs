@@ -9,38 +9,37 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            new Thread(() => Process(10)).Start();
+            var t1 = new Thread(() => TravelThroughGates("Thread 1", 5));
+            var t2 = new Thread(() => TravelThroughGates("Thread 2", 6));
+            var t3 = new Thread(() => TravelThroughGates("Thread 3", 12));
+            t1.Start();
+            t2.Start();
+            t3.Start();
 
-            WriteLine("Waiting for another thread to complete work");
-            _workerEvent.WaitOne();
-
-            WriteLine("First operation is completed!");
-            WriteLine("Performing an operation on a main thread");
-            Sleep(TimeSpan.FromSeconds(5));
+            Sleep(TimeSpan.FromSeconds(6));
+            WriteLine("The gates are now open!");
             _mainEvent.Set();
-            WriteLine("Now running the second operation on a second thread");
-            _workerEvent.WaitOne();
-            WriteLine("Second operation is completed!");
+            Sleep(TimeSpan.FromSeconds(2));
+            _mainEvent.Reset();
+
+            WriteLine("The gates have been closed!");
+            Sleep(TimeSpan.FromSeconds(10));
+            WriteLine("The gates are now open for the second time!");
+            _mainEvent.Set();
+            Sleep(TimeSpan.FromSeconds(2));
+            WriteLine("The gates have been closed!");
+            _mainEvent.Reset();
         }
 
-        private static AutoResetEvent _workerEvent = new AutoResetEvent(false);
+        static ManualResetEventSlim _mainEvent = new ManualResetEventSlim(false);
 
-        private static AutoResetEvent _mainEvent = new AutoResetEvent(false);
-
-        static void Process(int seconds)
+        static void TravelThroughGates(string threadName, int seconds)
         {
-            WriteLine("Starting a long running work...");
+            WriteLine($"{threadName} falls to sleep");
             Sleep(TimeSpan.FromSeconds(seconds));
-            WriteLine("Work is done!");
-
-            _workerEvent.Set();
-            WriteLine("Waiting for a main thread to complete its work");
-            _mainEvent.WaitOne();
-
-            WriteLine("Starting second operation...");
-            Sleep(TimeSpan.FromSeconds(seconds));
-            WriteLine("Work is done!");
-            _workerEvent.Set();
+            WriteLine($"{threadName} waits for the gates to open!");
+            _mainEvent.Wait();
+            WriteLine($"{threadName} enters the gates!");
         }
     }
 
