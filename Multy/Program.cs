@@ -9,88 +9,50 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            WriteLine("Incorrect counter");
-            var c = new Counter();
-            var t1 = new Thread(() => TestCounter(c));
-            var t2 = new Thread(() => TestCounter(c));
-            var t3 = new Thread(() => TestCounter(c));
-            t1.Start();
-            t2.Start();
-            t3.Start();
-            t1.Join();
-            t2.Join();
-            t3.Join();
-            WriteLine($"Total count: {c.Count}");
-            WriteLine("--------------------------");
-            WriteLine("Correct counter");
-            var c1 = new CounterWithLock();
-            t1 = new Thread(() => TestCounter(c1));
-            t2 = new Thread(() => TestCounter(c1));
-            t3 = new Thread(() => TestCounter(c1));
-            t1.Start();
-            t2.Start();
-            t3.Start();
-            t1.Join();
-            t2.Join();
-            t3.Join();
-            WriteLine($"Total count: {c1.Count}");
+            object lock1 = new object();
+            object lock2 = new object();
 
-        }
 
-        static void TestCounter(CounterBase c)
-        {
-            for (int i = 0; i < 100000; i++)
+            new Thread(() => LockTooMuch(lock1, lock2)).Start();
+
+            lock (lock2)
             {
-                c.Increment();
-                c.Decrement();
+                Sleep(1000);
+                WriteLine("Monitor.TryEnter allows not to get stuck, returning false after a specified timeout is elapsed");
+                if (Monitor.TryEnter(lock1, TimeSpan.FromSeconds(5)))
+                {
+                    WriteLine("Acquired a protected resource succesfully");
+                }
+                else
+                {
+                    WriteLine("Timeout acquiring a resource!");
+                }
             }
-        }
-        
-    }
 
-    class Counter : CounterBase
-    {
-
-        public int Count { get; private set; }
-
-        public override void Decrement()
-        {
-            Count++;
-        }
-
-        public override void Increment()
-        {
-            Count--;
-        }
-    }
-
-    class CounterWithLock : CounterBase
-    {
-        private readonly object _syncRoot = new Object();
-        public int Count { get; private set; }
-
-        public override void Decrement()
-        {
-            lock (_syncRoot)
+            new Thread(() => LockTooMuch(lock1, lock2)).Start();
+            WriteLine("----------------------------------");
+            lock (lock2)
             {
-                Count++;
+                WriteLine("This will be a deadlock!");
+                Sleep(1000);
+                lock (lock1)
+                {
+                    WriteLine("Acquired a protected resource succesfully");
+                }
             }
         }
 
-        public override void Increment()
+        static void LockTooMuch(object lock1, object lock2)
         {
-            lock (_syncRoot)
+            lock (lock1)
             {
-                Count--;
+                Sleep(1000);
+                lock (lock2) ;
             }
         }
     }
 
-    abstract class CounterBase
-    {
-        public abstract void Increment();
-        public abstract void Decrement();
-    }
+    
 
 
 }
