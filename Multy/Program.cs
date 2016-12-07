@@ -9,70 +9,87 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            var sample = new ThreadSample(10);
-            var threadOne = new Thread(sample.CountNumbers);
-            threadOne.Name = "ThreadOne";
-            threadOne.Start();
-            threadOne.Join();
+            WriteLine("Incorrect counter");
+            var c = new Counter();
+            var t1 = new Thread(() => TestCounter(c));
+            var t2 = new Thread(() => TestCounter(c));
+            var t3 = new Thread(() => TestCounter(c));
+            t1.Start();
+            t2.Start();
+            t3.Start();
+            t1.Join();
+            t2.Join();
+            t3.Join();
+            WriteLine($"Total count: {c.Count}");
             WriteLine("--------------------------");
-
-            var threadTwo = new Thread(Count);
-            threadTwo.Name = "ThreadTwo";
-            threadTwo.Start(8);
-            threadTwo.Join();
-            WriteLine("--------------------------");
-
-            var threadThree = new Thread(() => CountNumbers(12));
-            threadThree.Name = "ThreadThree";
-            threadThree.Start();
-            threadThree.Join();
-            WriteLine("--------------------------");
-
-            int i = 10;
-            var threadFour = new Thread(() => PrintNumber(i));
-            i = 20;
-            var threadFive = new Thread(() => PrintNumber(i));
-            threadFour.Start();
-            threadFive.Start();
+            WriteLine("Correct counter");
+            var c1 = new CounterWithLock();
+            t1 = new Thread(() => TestCounter(c1));
+            t2 = new Thread(() => TestCounter(c1));
+            t3 = new Thread(() => TestCounter(c1));
+            t1.Start();
+            t2.Start();
+            t3.Start();
+            t1.Join();
+            t2.Join();
+            t3.Join();
+            WriteLine($"Total count: {c1.Count}");
 
         }
 
-
-        static void Count(object iterations)
+        static void TestCounter(CounterBase c)
         {
-            CountNumbers((int)iterations);
-        }
-
-        static void CountNumbers(int iterations)
-        {
-            for (int i = 1; i <= iterations; i++)
+            for (int i = 0; i < 100000; i++)
             {
-                Sleep(TimeSpan.FromSeconds(0.5));
-                WriteLine($"{CurrentThread.Name} prints {i}");
+                c.Increment();
+                c.Decrement();
+            }
+        }
+        
+    }
+
+    class Counter : CounterBase
+    {
+
+        public int Count { get; private set; }
+
+        public override void Decrement()
+        {
+            Count++;
+        }
+
+        public override void Increment()
+        {
+            Count--;
+        }
+    }
+
+    class CounterWithLock : CounterBase
+    {
+        private readonly object _syncRoot = new Object();
+        public int Count { get; private set; }
+
+        public override void Decrement()
+        {
+            lock (_syncRoot)
+            {
+                Count++;
             }
         }
 
-        static void PrintNumber(int number)
+        public override void Increment()
         {
-            WriteLine(number);
+            lock (_syncRoot)
+            {
+                Count--;
+            }
         }
+    }
 
-        class ThreadSample
-        {
-            private readonly int _iterations;
-            public ThreadSample(int iterations)
-            {
-                _iterations = iterations;
-            }
-            public void CountNumbers()
-            {
-                for (int i = 1; i <= _iterations; i++)
-                {
-                    Sleep(TimeSpan.FromSeconds(0.5));
-                    WriteLine($"{CurrentThread.Name} prints {i}");
-                }
-            }
-        }
+    abstract class CounterBase
+    {
+        public abstract void Increment();
+        public abstract void Decrement();
     }
 
 
