@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using static System.Console;
 using static System.Threading.Thread;
@@ -9,22 +10,69 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            new Thread(() => PlayMusic("the guitarist", "play anamazing solo", 5)).Start();
-            new Thread(() => PlayMusic("the singer", "sing his song", 2)).Start();
+            new Thread(Read) { IsBackground = true }.Start();
+            new Thread(Read) { IsBackground = true }.Start();
+            new Thread(Read) { IsBackground = true }.Start();
+
+            new Thread(() => Write("Thread 1"))
+            { IsBackground = true }.Start();
+            new Thread(() => Write("Thread 2"))
+            { IsBackground = true }.Start();
+
+            Sleep(TimeSpan.FromSeconds(30));
         }
 
-        static Barrier _barrier = new Barrier(2,b => WriteLine($"End of phase {b.CurrentPhaseNumber + 1}"));
+        static ReaderWriterLockSlim _rw = new ReaderWriterLockSlim();
+        static Dictionary<int, int> _items = new Dictionary<int, int>();
 
-        static void PlayMusic(string name, string message, int seconds)
+        static void Read()
         {
-            for (int i = 0; i < 3; i++)
+            
+            while (true)
             {
-                WriteLine("----------------------------------------------");
-                Sleep(TimeSpan.FromSeconds(seconds));
-                WriteLine($"{name} starts to {message}");
-                Sleep(TimeSpan.FromSeconds(seconds));
-                WriteLine($"{name} finishes to {message}");
-                _barrier.SignalAndWait();
+                try
+                {
+                    WriteLine("Reading contents of a dictionary");
+                    _rw.EnterReadLock();
+                    foreach (var key in _items.Keys)
+                    {
+                        Sleep(TimeSpan.FromSeconds(0.1));
+                    }
+                }
+                finally
+                {
+                    _rw.ExitReadLock();
+                }
+            }
+        }
+
+        static void Write(string threadName)
+        {
+            while (true)
+            {
+                try
+                {
+                    int newKey = new Random().Next(250);
+                    _rw.EnterUpgradeableReadLock();
+                    if (!_items.ContainsKey(newKey))
+                    {
+                        try
+                        {
+                            _rw.EnterWriteLock();
+                            _items[newKey] = 1;
+                            WriteLine($"New key {newKey} is added to a dictionary bya { threadName}");
+                        }
+                        finally
+                        {
+                            _rw.ExitWriteLock();
+                        }
+                    }
+                    Sleep(TimeSpan.FromSeconds(0.1));
+                }
+                finally
+                {
+                    _rw.ExitUpgradeableReadLock();
+                }
             }
         }
     }
