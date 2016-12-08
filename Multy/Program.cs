@@ -9,37 +9,22 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            var t = new Thread(FaultyThread);
-            t.Start();
-            t.Join();
-            try
-            {
-                t = new Thread(BadFaultyThread);
-                t.Start();
-            }
-            catch (Exception ex)
-            {
-                WriteLine("We won't get here!");
-            }
+            new Thread(() => PlayMusic("the guitarist", "play anamazing solo", 5)).Start();
+            new Thread(() => PlayMusic("the singer", "sing his song", 2)).Start();
         }
 
-        static void BadFaultyThread()
+        static Barrier _barrier = new Barrier(2,b => WriteLine($"End of phase {b.CurrentPhaseNumber + 1}"));
+
+        static void PlayMusic(string name, string message, int seconds)
         {
-            WriteLine("Starting a faulty thread...");
-            Sleep(TimeSpan.FromSeconds(2));
-            throw new Exception("Boom!");
-        }
-        static void FaultyThread()
-        {
-            try
+            for (int i = 0; i < 3; i++)
             {
-                WriteLine("Starting a faulty thread...");
-                Sleep(TimeSpan.FromSeconds(1));
-                throw new Exception("Boom!");
-            }
-            catch (Exception ex)
-            {
-                WriteLine($"Exception handled: {ex.Message}");
+                WriteLine("----------------------------------------------");
+                Sleep(TimeSpan.FromSeconds(seconds));
+                WriteLine($"{name} starts to {message}");
+                Sleep(TimeSpan.FromSeconds(seconds));
+                WriteLine($"{name} finishes to {message}");
+                _barrier.SignalAndWait();
             }
         }
     }
