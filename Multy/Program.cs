@@ -10,43 +10,42 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            var t1 = new Thread(UserModeWait);
-            var t2 = new Thread(HybridSpinWait);
+            int threadId = 0;
+            RunOnThreadPool poolDelegate = Test;
 
-            WriteLine("Running user mode waiting");
-            t1.Start();
-            Sleep(20);
-            _isCompleted = true;
+            var t = new Thread(() => Test(out threadId));
+            t.Start();
+            t.Join();
 
-            Sleep(TimeSpan.FromSeconds(1));
-            _isCompleted = false;
-            WriteLine("Running hybrid SpinWait construct waiting");
-            t2.Start();
-            Sleep(5);
-            _isCompleted = true;
+            WriteLine($"Thread id: {threadId}");
+
+            IAsyncResult r = poolDelegate.BeginInvoke(out threadId, CallBack, "a delegate asynchronous call");
+            r.AsyncWaitHandle.WaitOne();
+
+            string result = poolDelegate.EndInvoke(out threadId, r);
+
+            WriteLine($"Thread pool worker thread id: {threadId}");
+            WriteLine(result);
+            Sleep(TimeSpan.FromSeconds(2));
         }
 
-        static volatile bool _isCompleted = false;
+        private delegate string RunOnThreadPool(out int threadId);
 
-        static void UserModeWait()
+        private static void CallBack(IAsyncResult ar)
         {
-            while (!_isCompleted)
-            {
-                Write(".");
-            }
-            WriteLine();
-            WriteLine("Waiting is complete");
+            WriteLine("Starting a callback...");
+            WriteLine($"State passed to a callbak: {ar.AsyncState}");
+            WriteLine($"Is thread pool thread:{ CurrentThread.IsThreadPoolThread}");
+            WriteLine($"Thread pool worker thread id:{ CurrentThread.ManagedThreadId}");
         }
 
-        static void HybridSpinWait()
+        private static string Test(out int threadId)
         {
-            var w = new SpinWait();
-            while (!_isCompleted)
-            {
-                w.SpinOnce();
-                WriteLine(w.NextSpinWillYield);
-            }
-            WriteLine("Waiting is complete");
+            WriteLine("Starting...");
+            WriteLine($"Is thread pool thread:{ CurrentThread.IsThreadPoolThread}");
+            Sleep(TimeSpan.FromSeconds(2));
+            threadId = CurrentThread.ManagedThreadId;
+            return $"Thread pool worker thread id was: {threadId}";
         }
 
 
