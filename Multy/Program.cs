@@ -10,74 +10,46 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            new Thread(Read) { IsBackground = true }.Start();
-            new Thread(Read) { IsBackground = true }.Start();
-            new Thread(Read) { IsBackground = true }.Start();
+            var t1 = new Thread(UserModeWait);
+            var t2 = new Thread(HybridSpinWait);
 
-            new Thread(() => Write("Thread 1"))
-            { IsBackground = true }.Start();
-            new Thread(() => Write("Thread 2"))
-            { IsBackground = true }.Start();
+            WriteLine("Running user mode waiting");
+            t1.Start();
+            Sleep(20);
+            _isCompleted = true;
 
-            Sleep(TimeSpan.FromSeconds(30));
+            Sleep(TimeSpan.FromSeconds(1));
+            _isCompleted = false;
+            WriteLine("Running hybrid SpinWait construct waiting");
+            t2.Start();
+            Sleep(5);
+            _isCompleted = true;
         }
 
-        static ReaderWriterLockSlim _rw = new ReaderWriterLockSlim();
-        static Dictionary<int, int> _items = new Dictionary<int, int>();
+        static volatile bool _isCompleted = false;
 
-        static void Read()
+        static void UserModeWait()
         {
-            
-            while (true)
+            while (!_isCompleted)
             {
-                try
-                {
-                    WriteLine("Reading contents of a dictionary");
-                    _rw.EnterReadLock();
-                    foreach (var key in _items.Keys)
-                    {
-                        Sleep(TimeSpan.FromSeconds(0.1));
-                    }
-                }
-                finally
-                {
-                    _rw.ExitReadLock();
-                }
+                Write(".");
             }
+            WriteLine();
+            WriteLine("Waiting is complete");
         }
 
-        static void Write(string threadName)
+        static void HybridSpinWait()
         {
-            while (true)
+            var w = new SpinWait();
+            while (!_isCompleted)
             {
-                try
-                {
-                    int newKey = new Random().Next(250);
-                    _rw.EnterUpgradeableReadLock();
-                    if (!_items.ContainsKey(newKey))
-                    {
-                        try
-                        {
-                            _rw.EnterWriteLock();
-                            _items[newKey] = 1;
-                            WriteLine($"New key {newKey} is added to a dictionary bya { threadName}");
-                        }
-                        finally
-                        {
-                            _rw.ExitWriteLock();
-                        }
-                    }
-                    Sleep(TimeSpan.FromSeconds(0.1));
-                }
-                finally
-                {
-                    _rw.ExitUpgradeableReadLock();
-                }
+                w.SpinOnce();
+                WriteLine(w.NextSpinWillYield);
             }
+            WriteLine("Waiting is complete");
         }
+
+
     }
-
-    
-
 
 }
