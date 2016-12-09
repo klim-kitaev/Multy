@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using static System.Console;
 using static System.Threading.Thread;
@@ -10,40 +11,59 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            const int x = 1;
-            const int y = 2;
-            const string lambdaState = "lambda state 2";
-
-            ThreadPool.QueueUserWorkItem(AsyncOperation);
-            Sleep(TimeSpan.FromSeconds(1));
-            ThreadPool.QueueUserWorkItem(AsyncOperation, "async state");
-            Sleep(TimeSpan.FromSeconds(1));
-            ThreadPool.QueueUserWorkItem(state =>
-            {
-                WriteLine($"Operation state: {state}");
-                WriteLine($"Worker thread id: {CurrentThread.ManagedThreadId}");
-                Sleep(TimeSpan.FromSeconds(2));
-                WriteLine($"Operator with state: {state} finished");
-            }, lambdaState);
-
-            ThreadPool.QueueUserWorkItem(_ =>
-            {
-                WriteLine($"Operation state: {x + y}, {lambdaState}");
-                WriteLine($"Worker thread id: {CurrentThread.ManagedThreadId}");
-                Sleep(TimeSpan.FromSeconds(2));
-                WriteLine($"Operator with state: {x + y}, {lambdaState} finished");
-            });
-
-            Sleep(TimeSpan.FromSeconds(2));
+            const int numberOfOperations = 500;
+            var sw = new Stopwatch();
+            sw.Start();
+            UseThreads(numberOfOperations);
+            sw.Stop();
+            WriteLine($"Execution time using threads:{ sw.ElapsedMilliseconds}");
+            sw.Reset();
+            sw.Start();
+            UseThreadPool(numberOfOperations);
+            sw.Stop();
+            WriteLine($"Execution time using the thread pool:{ sw.ElapsedMilliseconds}");
         }
 
-        private static void AsyncOperation(object state)
+        static void UseThreads(int numberOfOperations)
         {
-            WriteLine($"Operation state: {state ?? "(null)"}");
-            WriteLine($"Worker thread id: {CurrentThread.ManagedThreadId}");
-            Sleep(TimeSpan.FromSeconds(2));
-            WriteLine($"Operator with state: {state ?? "(null)"} finished");
+            using (var countdown = new CountdownEvent(numberOfOperations))
+            {
+                WriteLine("Scheduling work by creating threads");
+                for (int i = 0; i < numberOfOperations; i++)
+                {
+                    var thread = new Thread(() =>
+                      {
+                          Write($"{CurrentThread.ManagedThreadId},");
+                          Sleep(TimeSpan.FromSeconds(0.1));
+                          countdown.Signal();
+                      });
+                    thread.Start();
+                }
+                countdown.Wait();
+                WriteLine();
+            }
         }
+
+        static void UseThreadPool(int numberOfOperations)
+        {
+            using (var countdown = new CountdownEvent(numberOfOperations))
+            {
+                WriteLine("Starting work on a threadpool");
+                for (int i = 0; i < numberOfOperations; i++)
+                {
+                    ThreadPool.QueueUserWorkItem(_ =>
+                    {
+                        Write($"{CurrentThread.ManagedThreadId},");
+                        Sleep(TimeSpan.FromSeconds(0.1));
+                        countdown.Signal();
+                    });
+                }
+                countdown.Wait();
+                WriteLine();
+            }
+        }
+
+
 
 
     }
