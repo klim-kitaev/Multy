@@ -10,42 +10,39 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            int threadId = 0;
-            RunOnThreadPool poolDelegate = Test;
+            const int x = 1;
+            const int y = 2;
+            const string lambdaState = "lambda state 2";
 
-            var t = new Thread(() => Test(out threadId));
-            t.Start();
-            t.Join();
+            ThreadPool.QueueUserWorkItem(AsyncOperation);
+            Sleep(TimeSpan.FromSeconds(1));
+            ThreadPool.QueueUserWorkItem(AsyncOperation, "async state");
+            Sleep(TimeSpan.FromSeconds(1));
+            ThreadPool.QueueUserWorkItem(state =>
+            {
+                WriteLine($"Operation state: {state}");
+                WriteLine($"Worker thread id: {CurrentThread.ManagedThreadId}");
+                Sleep(TimeSpan.FromSeconds(2));
+                WriteLine($"Operator with state: {state} finished");
+            }, lambdaState);
 
-            WriteLine($"Thread id: {threadId}");
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                WriteLine($"Operation state: {x + y}, {lambdaState}");
+                WriteLine($"Worker thread id: {CurrentThread.ManagedThreadId}");
+                Sleep(TimeSpan.FromSeconds(2));
+                WriteLine($"Operator with state: {x + y}, {lambdaState} finished");
+            });
 
-            IAsyncResult r = poolDelegate.BeginInvoke(out threadId, CallBack, "a delegate asynchronous call");
-            r.AsyncWaitHandle.WaitOne();
-
-            string result = poolDelegate.EndInvoke(out threadId, r);
-
-            WriteLine($"Thread pool worker thread id: {threadId}");
-            WriteLine(result);
             Sleep(TimeSpan.FromSeconds(2));
         }
 
-        private delegate string RunOnThreadPool(out int threadId);
-
-        private static void CallBack(IAsyncResult ar)
+        private static void AsyncOperation(object state)
         {
-            WriteLine("Starting a callback...");
-            WriteLine($"State passed to a callbak: {ar.AsyncState}");
-            WriteLine($"Is thread pool thread:{ CurrentThread.IsThreadPoolThread}");
-            WriteLine($"Thread pool worker thread id:{ CurrentThread.ManagedThreadId}");
-        }
-
-        private static string Test(out int threadId)
-        {
-            WriteLine("Starting...");
-            WriteLine($"Is thread pool thread:{ CurrentThread.IsThreadPoolThread}");
+            WriteLine($"Operation state: {state ?? "(null)"}");
+            WriteLine($"Worker thread id: {CurrentThread.ManagedThreadId}");
             Sleep(TimeSpan.FromSeconds(2));
-            threadId = CurrentThread.ManagedThreadId;
-            return $"Thread pool worker thread id was: {threadId}";
+            WriteLine($"Operator with state: {state ?? "(null)"} finished");
         }
 
 
