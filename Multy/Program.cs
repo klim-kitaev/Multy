@@ -11,59 +11,79 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            const int numberOfOperations = 500;
-            var sw = new Stopwatch();
-            sw.Start();
-            UseThreads(numberOfOperations);
-            sw.Stop();
-            WriteLine($"Execution time using threads:{ sw.ElapsedMilliseconds}");
-            sw.Reset();
-            sw.Start();
-            UseThreadPool(numberOfOperations);
-            sw.Stop();
-            WriteLine($"Execution time using the thread pool:{ sw.ElapsedMilliseconds}");
+            using (var cts = new CancellationTokenSource())
+            {
+                CancellationToken token = cts.Token;
+                ThreadPool.QueueUserWorkItem(_ => AsyncOperation1(token));
+                Sleep(TimeSpan.FromSeconds(2));
+                cts.Cancel();
+            }
+            using (var cts = new CancellationTokenSource())
+            {
+                CancellationToken token = cts.Token;
+                ThreadPool.QueueUserWorkItem(_ => AsyncOperation2(token));
+                Sleep(TimeSpan.FromSeconds(2));
+                cts.Cancel();
+            }
+            using (var cts = new CancellationTokenSource())
+            {
+                CancellationToken token = cts.Token;
+                ThreadPool.QueueUserWorkItem(_ => AsyncOperation3(token));
+                Sleep(TimeSpan.FromSeconds(2));
+                cts.Cancel();
+            }
+            Sleep(TimeSpan.FromSeconds(2));
         }
 
-        static void UseThreads(int numberOfOperations)
+        static void AsyncOperation1(CancellationToken token)
         {
-            using (var countdown = new CountdownEvent(numberOfOperations))
+            WriteLine("Starting the first task");
+            for (int i = 0; i < 5; i++)
             {
-                WriteLine("Scheduling work by creating threads");
-                for (int i = 0; i < numberOfOperations; i++)
+                if(token.IsCancellationRequested)
                 {
-                    var thread = new Thread(() =>
-                      {
-                          Write($"{CurrentThread.ManagedThreadId},");
-                          Sleep(TimeSpan.FromSeconds(0.1));
-                          countdown.Signal();
-                      });
-                    thread.Start();
+                    WriteLine("The first task has been canceled.");
+                    return;
                 }
-                countdown.Wait();
-                WriteLine();
+                Sleep(TimeSpan.FromSeconds(1));
+            }
+            WriteLine("The first task has completed succesfully");
+        }
+
+        static void AsyncOperation2(CancellationToken token)
+        {
+            try
+            {
+                WriteLine("Starting the second task");
+                for (int i = 0; i < 5; i++)
+                {
+                    token.ThrowIfCancellationRequested();
+                    Sleep(TimeSpan.FromSeconds(1));
+                }
+                WriteLine("The second task has completed succesfully");
+            }
+            catch (OperationCanceledException)
+            {
+                WriteLine("The second task has been canceled.");
             }
         }
 
-        static void UseThreadPool(int numberOfOperations)
+        static void AsyncOperation3(CancellationToken token)
         {
-            using (var countdown = new CountdownEvent(numberOfOperations))
+            bool cancellationFlag = false;
+            token.Register(() => cancellationFlag = true);
+            WriteLine("Starting the third task");
+            for (int i = 0; i < 5; i++)
             {
-                WriteLine("Starting work on a threadpool");
-                for (int i = 0; i < numberOfOperations; i++)
+                if (cancellationFlag)
                 {
-                    ThreadPool.QueueUserWorkItem(_ =>
-                    {
-                        Write($"{CurrentThread.ManagedThreadId},");
-                        Sleep(TimeSpan.FromSeconds(0.1));
-                        countdown.Signal();
-                    });
+                    WriteLine("The third task has been canceled.");
+                    return;
                 }
-                countdown.Wait();
-                WriteLine();
+                Sleep(TimeSpan.FromSeconds(1));
             }
+            WriteLine("The third task has completed succesfully");
         }
-
-
 
 
     }
