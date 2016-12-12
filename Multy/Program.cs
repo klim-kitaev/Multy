@@ -13,43 +13,52 @@ namespace Multy
         static void Main(string[] args)
         {
 
-            var cts = new CancellationTokenSource();
-            var longTask = new Task<int>(() => TaskMethod("Task1", 10, cts.Token), cts.Token);
-            WriteLine(longTask.Status);
-            cts.Cancel();
-            WriteLine(longTask.Status);
-            WriteLine("First task has been cancelled before execution");
+            Task<int> task;
 
-            cts = new CancellationTokenSource();
-            longTask = new Task<int>(() =>
-            TaskMethod("Task 2", 10, cts.Token), cts.Token);
-            longTask.Start();
-
-            for (int i = 0; i < 5; i++)
+            try
             {
-                Sleep(TimeSpan.FromSeconds(0.5));
-                WriteLine(longTask.Status);
+                task = Task.Run(() => TaskMethod("Task 1", 2));
+                int result = task.Result;
+                WriteLine($"Result: {result}");
             }
-            cts.Cancel();
-            for (int i = 0; i < 5; i++)
+            catch (Exception ex)
             {
-                Sleep(TimeSpan.FromSeconds(0.5));
-                WriteLine(longTask.Status);
-            }
-            WriteLine($"A task has been completed with result {longTask.Result}.");
 
+                WriteLine($"Exception caught: {ex}");
+            }
+
+            WriteLine("----------------------------------------------");
+            WriteLine();
+
+            try
+            {
+                task = Task.Run(() => TaskMethod("Task 2", 2));
+                int result = task.GetAwaiter().GetResult();
+                WriteLine($"Result: {result}");
+            }
+            catch (Exception ex)
+            {
+                WriteLine($"Exception caught: {ex}");
+            }
+
+            WriteLine("----------------------------------------------");
+            WriteLine();
+            var t1 = new Task<int>(() => TaskMethod("Task 3", 3));
+            var t2 = new Task<int>(() => TaskMethod("Task 4", 2));
+            var complexTask = Task.WhenAll(t1, t2);
+            var exceptionHandler = complexTask.ContinueWith(t =>
+              WriteLine($"Exception caught: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+            t1.Start();
+            t2.Start();
+            Sleep(TimeSpan.FromSeconds(5));
 
         }
 
-        static int TaskMethod(string name, int seconds, CancellationToken token)
+        static int TaskMethod(string name, int seconds)
         {
             WriteLine($"Task {name} is running on a thread id {CurrentThread.ManagedThreadId}. Is thread pool thread: {CurrentThread.IsThreadPoolThread}");
-            for (int i = 0; i < seconds; i++)
-            {
-                Sleep(TimeSpan.FromSeconds(2));
-                if (token.IsCancellationRequested)
-                    return -1;
-            }
+            Sleep(TimeSpan.FromSeconds(seconds));
+            throw new Exception("Boom!");
             return 42 * seconds;
         }
 
