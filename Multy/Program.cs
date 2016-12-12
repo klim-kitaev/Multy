@@ -12,19 +12,42 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            var t1 = new Task(() => TaskMethod("Task 1"));
-            var t2 = new Task(() => TaskMethod("Task 2"));
-            t2.Start();
-            t1.Start();
-            Task.Run(() => TaskMethod("Task 3"));
-            Task.Factory.StartNew(() => TaskMethod("Task 4"));
-            Task.Factory.StartNew(() => TaskMethod("Task 5"),TaskCreationOptions.LongRunning);
-            Sleep(TimeSpan.FromSeconds(1));
+            TaskMethod("Main thread Task");
+            Task<int> task = CreateTask("Task 1");
+            task.Start();
+            int result = task.Result;
+            WriteLine($"Result is: {result}");
+
+            task = CreateTask("Task 2");
+            task.RunSynchronously();
+            result = task.Result;
+            WriteLine($"Result is: {result}");
+
+            task = CreateTask("Task 3");
+            WriteLine(task.Status);
+            task.Start();
+
+            while (!task.IsCompleted)
+            {
+                WriteLine(task.Status);
+                Sleep(TimeSpan.FromSeconds(0.5));
+            }
+
+            WriteLine(task.Status);
+            result = task.Result;
+            WriteLine($"Result is: {result}");
         }
 
-        static void TaskMethod(string name)
+       static int TaskMethod(string name)
         {
             WriteLine($"Task {name} is running on a thread id {CurrentThread.ManagedThreadId}. Is thread pool thread: {CurrentThread.IsThreadPoolThread}");
+            Sleep(TimeSpan.FromSeconds(2));
+            return 42;
+        }
+
+        static Task<int> CreateTask(string name)
+        {
+            return new Task<int>(() => TaskMethod(name));
         }
 
     }
