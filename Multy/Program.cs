@@ -13,44 +13,35 @@ namespace Multy
         static void Main(string[] args)
         {
 
-            Task<int> task;
+            var firstTask = new Task<int>(() => TaskMethod("First Task", 3));
+            var secondTask = new Task<int>(() =>
+            TaskMethod("Second Task", 2));
+            var whenAllTask = Task.WhenAll(firstTask, secondTask);
 
-            try
-            {
-                task = Task.Run(() => TaskMethod("Task 1", 2));
-                int result = task.Result;
-                WriteLine($"Result: {result}");
-            }
-            catch (Exception ex)
-            {
+            whenAllTask.ContinueWith(t =>
+                            WriteLine($"The first answer is {t.Result[0]}, the second is { t.Result[1]}"),TaskContinuationOptions.OnlyOnRanToCompletion);
 
-                WriteLine($"Exception caught: {ex}");
-            }
+            firstTask.Start();
+            secondTask.Start();
+            Sleep(TimeSpan.FromSeconds(4));
+            var tasks = new List<Task<int>>();
 
-            WriteLine("----------------------------------------------");
-            WriteLine();
-
-            try
+            for (int i = 0; i < 4; i++)
             {
-                task = Task.Run(() => TaskMethod("Task 2", 2));
-                int result = task.GetAwaiter().GetResult();
-                WriteLine($"Result: {result}");
-            }
-            catch (Exception ex)
-            {
-                WriteLine($"Exception caught: {ex}");
+                int counter = i;
+                var task = new Task<int>(() =>TaskMethod($"Task {counter}", counter));
+                tasks.Add(task);
+                task.Start();
             }
 
-            WriteLine("----------------------------------------------");
-            WriteLine();
-            var t1 = new Task<int>(() => TaskMethod("Task 3", 3));
-            var t2 = new Task<int>(() => TaskMethod("Task 4", 2));
-            var complexTask = Task.WhenAll(t1, t2);
-            var exceptionHandler = complexTask.ContinueWith(t =>
-              WriteLine($"Exception caught: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
-            t1.Start();
-            t2.Start();
-            Sleep(TimeSpan.FromSeconds(5));
+            while (tasks.Count>0)
+            {
+                var completedTask = Task.WhenAny(tasks).Result;
+                tasks.Remove(completedTask);
+                WriteLine($"A task has been completed with result {completedTask.Result}.");
+            }
+
+            Sleep(TimeSpan.FromSeconds(1));
 
         }
 
@@ -58,7 +49,6 @@ namespace Multy
         {
             WriteLine($"Task {name} is running on a thread id {CurrentThread.ManagedThreadId}. Is thread pool thread: {CurrentThread.IsThreadPoolThread}");
             Sleep(TimeSpan.FromSeconds(seconds));
-            throw new Exception("Boom!");
             return 42 * seconds;
         }
 
