@@ -13,54 +13,44 @@ namespace Multy
         static void Main(string[] args)
         {
 
-            int threadId;
-            AsynchronousTask d = Test;
-            IncompatibleAsynchronousTask e = Test;
+            var cts = new CancellationTokenSource();
+            var longTask = new Task<int>(() => TaskMethod("Task1", 10, cts.Token), cts.Token);
+            WriteLine(longTask.Status);
+            cts.Cancel();
+            WriteLine(longTask.Status);
+            WriteLine("First task has been cancelled before execution");
 
-            WriteLine("Option 1");
+            cts = new CancellationTokenSource();
+            longTask = new Task<int>(() =>
+            TaskMethod("Task 2", 10, cts.Token), cts.Token);
+            longTask.Start();
 
-            Task<string> task = Task<string>.Factory.FromAsync(d.BeginInvoke("AsyncTaskThread", Callback, "a delegate asynchronous call"), d.EndInvoke);
-            task.ContinueWith(t => WriteLine($"Callback is finished, now running a continuation! Result: { t.Result}"));
-
-            while (!task.IsCompleted)
+            for (int i = 0; i < 5; i++)
             {
-                WriteLine(task.Status);
                 Sleep(TimeSpan.FromSeconds(0.5));
+                WriteLine(longTask.Status);
             }
-            WriteLine(task.Status);
-            Sleep(TimeSpan.FromSeconds(1));
-            WriteLine("----------------------------------------------");
-            WriteLine();
+            cts.Cancel();
+            for (int i = 0; i < 5; i++)
+            {
+                Sleep(TimeSpan.FromSeconds(0.5));
+                WriteLine(longTask.Status);
+            }
+            WriteLine($"A task has been completed with result {longTask.Result}.");
+
 
         }
 
-        delegate string AsynchronousTask(string threadName);
-        delegate string IncompatibleAsynchronousTask(out int threadId);
-
-        static void Callback(IAsyncResult ar)
+        static int TaskMethod(string name, int seconds, CancellationToken token)
         {
-            WriteLine("Starting a callback...");
-            WriteLine($"State passed to a callbak: {ar.AsyncState}");
-            WriteLine($"Is thread pool thread:{ CurrentThread.IsThreadPoolThread}");
-            WriteLine($"Thread pool worker thread id:{ CurrentThread.ManagedThreadId}");
-        }
-
-        static string Test(string threadName)
-        {
-            WriteLine("Starting...");
-            WriteLine($"Is thread pool thread:{ CurrentThread.IsThreadPoolThread}");
-            Sleep(TimeSpan.FromSeconds(2));
-            CurrentThread.Name = threadName;
-            return $"Thread name: {CurrentThread.Name}";
-        }
-
-        static string Test(out int threadId)
-        {
-            WriteLine("Starting...");
-            WriteLine($"Is thread pool thread:{ CurrentThread.IsThreadPoolThread}");
-            Sleep(TimeSpan.FromSeconds(2));
-            threadId = CurrentThread.ManagedThreadId;
-            return $"Thread pool worker thread id was: {threadId}";
+            WriteLine($"Task {name} is running on a thread id {CurrentThread.ManagedThreadId}. Is thread pool thread: {CurrentThread.IsThreadPoolThread}");
+            for (int i = 0; i < seconds; i++)
+            {
+                Sleep(TimeSpan.FromSeconds(2));
+                if (token.IsCancellationRequested)
+                    return -1;
+            }
+            return 42 * seconds;
         }
 
 
