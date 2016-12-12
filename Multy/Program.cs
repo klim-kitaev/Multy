@@ -12,43 +12,55 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            TaskMethod("Main thread Task");
-            Task<int> task = CreateTask("Task 1");
-            task.Start();
-            int result = task.Result;
-            WriteLine($"Result is: {result}");
+            var firstTask = new Task<int>(() => TaskMethod("First Task", 3));
+            var secondTask = new Task<int>(() => TaskMethod("Second Task", 2));
 
-            task = CreateTask("Task 2");
-            task.RunSynchronously();
-            result = task.Result;
-            WriteLine($"Result is: {result}");
+            firstTask.ContinueWith(
+                t => WriteLine($"The first answer is {t.Result}. Thread id  {CurrentThread.ManagedThreadId}. Is thread pool thread: {CurrentThread.IsThreadPoolThread}"));
 
-            task = CreateTask("Task 3");
-            WriteLine(task.Status);
-            task.Start();
+            firstTask.Start();
+            secondTask.Start();
 
-            while (!task.IsCompleted)
+            Sleep(TimeSpan.FromSeconds(4));
+
+            Task contination= secondTask.ContinueWith(
+                t => WriteLine($"The second answer is {t.Result}. Thread id  {CurrentThread.ManagedThreadId}. Is thread pool thread: {CurrentThread.IsThreadPoolThread}"),
+                TaskContinuationOptions.ExecuteSynchronously
+            );
+
+            contination.GetAwaiter().OnCompleted(
+                ()=> WriteLine($"Continuation Task Completed! Thread id {CurrentThread.ManagedThreadId}. Is thread pool thread: {CurrentThread.IsThreadPoolThread}"));
+
+            Sleep(TimeSpan.FromSeconds(2));
+            WriteLine();
+            
+            firstTask = new Task<int>(() =>
+                  {
+                      var innerTask = Task.Factory.StartNew(() => TaskMethod("Second Task", 5), TaskCreationOptions.AttachedToParent);
+                      innerTask.ContinueWith(t => TaskMethod("Third Task", 2), TaskContinuationOptions.AttachedToParent);
+                      return TaskMethod("First Task", 2);
+                  });
+
+            firstTask.Start();
+
+            while (!firstTask.IsCompleted)
             {
-                WriteLine(task.Status);
+                WriteLine(firstTask.Status);
                 Sleep(TimeSpan.FromSeconds(0.5));
             }
-
-            WriteLine(task.Status);
-            result = task.Result;
-            WriteLine($"Result is: {result}");
+            WriteLine(firstTask.Status);
+            Sleep(TimeSpan.FromSeconds(10));
+            
         }
 
-       static int TaskMethod(string name)
+       static int TaskMethod(string name, int seconds)
         {
             WriteLine($"Task {name} is running on a thread id {CurrentThread.ManagedThreadId}. Is thread pool thread: {CurrentThread.IsThreadPoolThread}");
-            Sleep(TimeSpan.FromSeconds(2));
-            return 42;
+            Sleep(TimeSpan.FromSeconds(seconds));
+            return 42*seconds;
         }
 
-        static Task<int> CreateTask(string name)
-        {
-            return new Task<int>(() => TaskMethod(name));
-        }
+      
 
     }
 
