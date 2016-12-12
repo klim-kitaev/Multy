@@ -12,55 +12,57 @@ namespace Multy
     {
         static void Main(string[] args)
         {
-            var firstTask = new Task<int>(() => TaskMethod("First Task", 3));
-            var secondTask = new Task<int>(() => TaskMethod("Second Task", 2));
 
-            firstTask.ContinueWith(
-                t => WriteLine($"The first answer is {t.Result}. Thread id  {CurrentThread.ManagedThreadId}. Is thread pool thread: {CurrentThread.IsThreadPoolThread}"));
+            int threadId;
+            AsynchronousTask d = Test;
+            IncompatibleAsynchronousTask e = Test;
 
-            firstTask.Start();
-            secondTask.Start();
+            WriteLine("Option 1");
 
-            Sleep(TimeSpan.FromSeconds(4));
+            Task<string> task = Task<string>.Factory.FromAsync(d.BeginInvoke("AsyncTaskThread", Callback, "a delegate asynchronous call"), d.EndInvoke);
+            task.ContinueWith(t => WriteLine($"Callback is finished, now running a continuation! Result: { t.Result}"));
 
-            Task contination= secondTask.ContinueWith(
-                t => WriteLine($"The second answer is {t.Result}. Thread id  {CurrentThread.ManagedThreadId}. Is thread pool thread: {CurrentThread.IsThreadPoolThread}"),
-                TaskContinuationOptions.ExecuteSynchronously
-            );
-
-            contination.GetAwaiter().OnCompleted(
-                ()=> WriteLine($"Continuation Task Completed! Thread id {CurrentThread.ManagedThreadId}. Is thread pool thread: {CurrentThread.IsThreadPoolThread}"));
-
-            Sleep(TimeSpan.FromSeconds(2));
-            WriteLine();
-            
-            firstTask = new Task<int>(() =>
-                  {
-                      var innerTask = Task.Factory.StartNew(() => TaskMethod("Second Task", 5), TaskCreationOptions.AttachedToParent);
-                      innerTask.ContinueWith(t => TaskMethod("Third Task", 2), TaskContinuationOptions.AttachedToParent);
-                      return TaskMethod("First Task", 2);
-                  });
-
-            firstTask.Start();
-
-            while (!firstTask.IsCompleted)
+            while (!task.IsCompleted)
             {
-                WriteLine(firstTask.Status);
+                WriteLine(task.Status);
                 Sleep(TimeSpan.FromSeconds(0.5));
             }
-            WriteLine(firstTask.Status);
-            Sleep(TimeSpan.FromSeconds(10));
-            
+            WriteLine(task.Status);
+            Sleep(TimeSpan.FromSeconds(1));
+            WriteLine("----------------------------------------------");
+            WriteLine();
+
         }
 
-       static int TaskMethod(string name, int seconds)
+        delegate string AsynchronousTask(string threadName);
+        delegate string IncompatibleAsynchronousTask(out int threadId);
+
+        static void Callback(IAsyncResult ar)
         {
-            WriteLine($"Task {name} is running on a thread id {CurrentThread.ManagedThreadId}. Is thread pool thread: {CurrentThread.IsThreadPoolThread}");
-            Sleep(TimeSpan.FromSeconds(seconds));
-            return 42*seconds;
+            WriteLine("Starting a callback...");
+            WriteLine($"State passed to a callbak: {ar.AsyncState}");
+            WriteLine($"Is thread pool thread:{ CurrentThread.IsThreadPoolThread}");
+            WriteLine($"Thread pool worker thread id:{ CurrentThread.ManagedThreadId}");
         }
 
-      
+        static string Test(string threadName)
+        {
+            WriteLine("Starting...");
+            WriteLine($"Is thread pool thread:{ CurrentThread.IsThreadPoolThread}");
+            Sleep(TimeSpan.FromSeconds(2));
+            CurrentThread.Name = threadName;
+            return $"Thread name: {CurrentThread.Name}";
+        }
+
+        static string Test(out int threadId)
+        {
+            WriteLine("Starting...");
+            WriteLine($"Is thread pool thread:{ CurrentThread.IsThreadPoolThread}");
+            Sleep(TimeSpan.FromSeconds(2));
+            threadId = CurrentThread.ManagedThreadId;
+            return $"Thread pool worker thread id was: {threadId}";
+        }
+
 
     }
 
